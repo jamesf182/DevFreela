@@ -1,6 +1,6 @@
-﻿using Azure.Core;
-using Dapper;
+﻿using Dapper;
 using DevFreela.Core.Entities;
+using DevFreela.Core.Models;
 using DevFreela.Core.Repositories;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
@@ -10,6 +10,7 @@ namespace DevFreela.Infrastructure.Persistence.Repositories
 {
     public class ProjectRepository : IProjectRepository
     {
+        private const int PAGE_SIZE = 2;
         private readonly DevFreelaDbContext _dbContext;
         private readonly string _connectionString;
 
@@ -19,9 +20,19 @@ namespace DevFreela.Infrastructure.Persistence.Repositories
             _connectionString = configuration.GetConnectionString("DevFreelaCs");
         }
 
-        public async Task<List<Project>> GetAllAsync()
+        public async Task<PaginationResult<Project>> GetAllAsync(string query, int page)
         {
-            return await _dbContext.Projects.ToListAsync();
+            IQueryable<Project> projects = _dbContext.Projects;
+
+            if (!string.IsNullOrWhiteSpace(query))
+            {
+                projects = projects
+                    .Where(p =>
+                        p.Title.Contains(query) ||
+                        p.Description.Contains(query));
+            }
+
+            return await projects.GetPaged<Project>(page, PAGE_SIZE);
         }
 
         public async Task<Project> GetByIdAsync(int id)
@@ -52,7 +63,7 @@ namespace DevFreela.Infrastructure.Persistence.Repositories
             var script = "UPDATE Projects SET Status = @status, StartedAt = @startedAt WHERE Id = @id";
 
             await sqlConnection.ExecuteAsync(script, new { status = project.Status, startedAt = project.StartedAt, project.Id });
-        }        
+        }
 
         public async Task AddCommentAsync(ProjectComment comment)
         {
@@ -63,6 +74,6 @@ namespace DevFreela.Infrastructure.Persistence.Repositories
         public async Task SaveChangesAsync()
         {
             await _dbContext.SaveChangesAsync();
-        }        
+        }
     }
 }

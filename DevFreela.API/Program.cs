@@ -1,28 +1,21 @@
 using DevFreela.API.Extensions;
 using DevFreela.API.Filters;
-using DevFreela.Application.Commands.CreateProject;
-using DevFreela.Application.Consumers;
 using DevFreela.Application.Validators;
-using DevFreela.Infrastructure.Persistence;
 using FluentValidation;
 using FluentValidation.AspNetCore;
-using MediatR;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
-using System.Text;
+using DevFreela.Application;
+using DevFreela.Infrastructure;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
-var connectionString = builder.Configuration.GetConnectionString("DevFreelaCs");
-builder.Services.AddDbContext<DevFreelaDbContext>(options => options.UseSqlServer(connectionString));
 
-builder.Services.AddHttpClient();
+var configuration = builder.Configuration;
 
-builder.Services.AddInfrastructure();
-builder.Services.AddHostedService<PaymentApprovedConsumer>();
+builder.Services
+    .AddInfrastructure(configuration)
+    .AddApplication();
 
 builder.Services.AddControllers(options => options.Filters.Add(typeof(ValidationFilter)));
 
@@ -30,8 +23,6 @@ builder.Services
         .AddValidatorsFromAssemblyContaining<CreateUserCommandValidator>()
         .AddFluentValidationAutoValidation()
         .AddFluentValidationClientsideAdapters();
-
-builder.Services.AddMediatR(typeof(CreateProjectCommand));
 
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
@@ -65,24 +56,6 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
 });
-
-builder.Services
-  .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-  .AddJwtBearer(options =>
-  {
-      options.TokenValidationParameters = new TokenValidationParameters
-      {
-          ValidateIssuer = true,
-          ValidateAudience = true,
-          ValidateLifetime = true,
-          ValidateIssuerSigningKey = true,
-
-          ValidIssuer = builder.Configuration["Jwt:Issuer"],
-          ValidAudience = builder.Configuration["Jwt:Audience"],
-          IssuerSigningKey = new SymmetricSecurityKey
-        (Encoding.UTF8.GetBytes(builder.Configuration["Jwt:Key"]))
-      };
-  });
 
 var app = builder.Build();
 
